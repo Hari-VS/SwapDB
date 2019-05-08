@@ -14,22 +14,22 @@ setlocal enabledelayedexpansion
 		set tempVer=%%~A
 		echo.!tempVer! | findstr /C:"!varver!">nul && ( 
 			echo !varver! is found 
+			set newPath=!tempVer!
 			goto :FOUND
 		)
 	)
 	
-	:ADD
-	echo ---- Version not found. Check available versions ----
+	:EDIT
+	echo ---- Version not found. Opening the Editor ----
 	call Edit.cmd
 	goto :SWAP
 	
-	:FOUND
-	
+	:FOUND	
 	set /p actVer=<activ.v
 	echo ---- Active version is %actVer% ----
 	if x%actVer%==x%varver% (
 		echo ---- Version is already active. Terminating.... ----
-		goto :END
+		goto :DONE
 	)
 
 	:CHECKINSTALL
@@ -38,8 +38,8 @@ setlocal enabledelayedexpansion
 	set _origDir=%CD% 
 
 	if x%_varpath:E1local=%==x%_varpath% (
-		echo ---- Did not locate E1local in your system path. Deinstall will not be run. ----
-		goto :SWAP	)
+		echo ---- Did not locate E1local in your system path. ----
+		goto :INSTALL	)
 
 	echo ---- E1Local installation located. Process will proceed as intended. ----
 	
@@ -52,20 +52,28 @@ setlocal enabledelayedexpansion
 	REM echo %deinstallPath%
 	echo ---- Switching to E1Local as Working Directory. ----
 	pushd %deinstallPath%	
-	set rsp=response\deinstall_E1Local.rsp
-	set args=-silent
+	set rsp=\response\deinstall_E1Local.rsp
+	set rspPath=%deinstallPath%%rsp%
+	set rspPath=!rspPath: =!
+	set args=-silent -paramfile %rspPath% 
 	set bat=deinstall_E1Local.bat
 	echo CMD: %bat% %args%
 	%bat% %args%
 	popd
 	echo ---- Control returned. ----
 	CD /D %_origDir%
+	goto :CHECKINSTALL
 
 	:INSTALL
 	echo ---- Launching installer. ----
-	pushd %1
-	start OEE12Setup.exe -b -iC:\Oracle\JDE
+	echo %varver% %newPath%
+	set newPath=!newPath:%varver%:=!
+	echo INSTALL path %newPath%
+	pushd %newPath%
+	call OEE12Setup.exe -b -iC:\Oracle\AutoSwap
 	popd
-	set /p varver=>activ.v
+    @echo %varver%> activ.v
+	
+	:DONE
 	
 	
