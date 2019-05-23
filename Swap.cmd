@@ -1,6 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
 	
+	:SETUP
+	set _origDir=%CD%
+	set swapInsLog=%_origDir%\swapInstaller.log
+	set swapUnInsLog=%_origDir%\swapUnInstaller.log
+	set remCount=0
+	set _varpath="%path%"
+	set /p actVer=<activ.v
+	
+	
+	:CLEANUP
+	copy /y NUL %swapInsLog% >NUL
+	copy /y NUL %swapUnInsLog% >NUL
 	
 	:SWAP
 	echo ---- Need input for Swapping ----
@@ -9,11 +21,12 @@ setlocal enabledelayedexpansion
 	for /F %%A in (key.value) do (
 		echo %%A 
 	)
+	echo ---- Active version is %actVer% ----
 	set /p varver="---- Enter version to swap to: "
 	for /F %%A in (key.value) do (
 		set tempVer=%%~A
 		echo.!tempVer! | findstr /C:"!varver!">nul && ( 
-			echo !varver! is found 
+			echo Version !varver! is found 
 			set newPath=!tempVer!
 			goto :FOUND
 		)
@@ -25,18 +38,17 @@ setlocal enabledelayedexpansion
 	goto :SWAP
 	
 	:FOUND	
-	set /p actVer=<activ.v
-	echo ---- Active version is %actVer% ----
 	if x%actVer%==x%varver% (
 		echo ---- Version is already active. Terminating.... ----
 		goto :DONE
 	)
 
 	:CHECKINSTALL
+	if %remCount%==1 (
+		echo ---- Could not remove the installation. User must check the logs to see the error. Exiting process. ----
+		goto :DONE )
+	
 	echo ---- Checking for an installation. ----
-	set _varpath="%path%"
-	set _origDir=%CD% 
-
 	if x%_varpath:E1local=%==x%_varpath% (
 		echo ---- Did not locate E1local in your system path. ----
 		goto :INSTALL	)
@@ -51,6 +63,7 @@ setlocal enabledelayedexpansion
     set deinstallPath=%binPath:bin=deinstall%
 	REM echo %deinstallPath%
 	echo ---- Switching to E1Local as Working Directory. ----
+	echo DEINSTALLPATH %deinstallPath%
 	pushd %deinstallPath%	
 	set rsp=\response\deinstall_E1Local.rsp
 	set rspPath=%deinstallPath%%rsp%
@@ -58,22 +71,22 @@ setlocal enabledelayedexpansion
 	set args=-silent -paramfile %rspPath% 
 	set bat=deinstall_E1Local.bat
 	echo CMD: %bat% %args%
-	%bat% %args%
+	call %bat% %args% > swapUnInslog
 	popd
+	set remCount=1
 	echo ---- Control returned. ----
 	CD /D %_origDir%
 	goto :CHECKINSTALL
 
 	:INSTALL
 	echo ---- Launching installer. ----
-	echo %varver% %newPath%
 	set newPath=!newPath:%varver%:=!
-	echo INSTALL path %newPath%
+	echo INSTALLPATH %newPath%
 	pushd %newPath%
-	call OEE12Setup.exe -b -iC:\Oracle\AutoSwap
+	call OEE12Setup.exe -b -iC:\Oracle\AutoSwap\%varver% > swapInsLog
 	popd
     @echo %varver%> activ.v
 	
 	:DONE
-	
+	exit
 	
