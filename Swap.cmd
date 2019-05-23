@@ -34,7 +34,6 @@ setlocal enabledelayedexpansion
 	
 	:EDIT
 	echo ---- Version not found. Opening the Editor ----
-	call Edit.cmd
 	goto :SWAP
 	
 	:FOUND	
